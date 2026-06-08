@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chat Viewer</title>
+
+<!-- PWA -->
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#008069">
+<link rel="icon" type="image/png" sizes="32x32" href="./favicon-32.png">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Chat Viewer">
+<style>
+  :root {
+    --wa-green: #008069;
+    --wa-green-dark: #017561;
+    --header-bg: #008069;
+    --header-text: #ffffff;
+    --header-sub: rgba(255,255,255,.8);
+    --app-bg: #d1d7db;
+    --chat-bg: #efeae2;
+    --bubble-in: #ffffff;
+    --bubble-out: #d9fdd3;
+    --text: #111b21;
+    --time: #667781;
+    --divider-bg: #ffffff;
+    --divider-text: #54656f;
+    --sysmsg-bg: #ffeecd;
+    --sysmsg-text: #54656f;
+    --tick: #53bdeb;
+    --link: #027eb5;
+    --name-1: #e542a3; --name-2: #1f7aec; --name-3: #d2992a;
+    --shadow: rgba(11,20,26,.13);
+    --search-hit: #ffe17d;
+    --search-active: #ffb02e;
+    --panel-bg: #ffffff;
+    --panel-text: #111b21;
+    --doodle: 4,12,8;
+    --doodle-op: .06;
+  }
+  .dark {
+    --header-bg: #1f2c34;
+    --header-text: #e9edef;
+    --header-sub: #8696a0;
+    --app-bg: #0b141a;
+    --chat-bg: #0b141a;
+    --bubble-in: #202c33;
+    --bubble-out: #005c4b;
+    --text: #e9edef;
+    --time: #8696a0;
+    --divider-bg: #182229;
+    --divider-text: #8696a0;
+    --sysmsg-bg: #182229;
+    --sysmsg-text: #8696a0;
+    --tick: #53bdeb;
+    --link: #53bdeb;
+    --shadow: rgba(0,0,0,.3);
+    --search-hit: #56652b;
+    --search-active: #b08d2a;
+    --panel-bg: #233138;
+    --panel-text: #e9edef;
+    --doodle: 233,237,239;
+    --doodle-op: .04;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    background: var(--app-bg);
+    color: var(--text);
+    overflow: hidden;
+  }
+
+  .app {
+    height: 100%;
+    max-width: 1000px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    background: var(--chat-bg);
+    position: relative;
+    box-shadow: 0 0 40px rgba(0,0,0,.15);
+  }
+
+  /* ---------- Header ---------- */
+  header {
+    flex: 0 0 auto;
+    background: var(--header-bg);
+    color: var(--header-text);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 9px 16px;
+    z-index: 30;
+    box-shadow: 0 1px 3px rgba(0,0,0,.15);
+  }
+  .avatar {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: rgba(255,255,255,.25);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 600; font-size: 18px; flex: 0 0 auto;
+    overflow: hidden;
+  }
+  .dark .avatar { background: #6a7175; }
+  .head-info { flex: 1 1 auto; min-width: 0; }
+  .head-name { font-size: 16px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .head-sub { font-size: 12.5px; color: var(--header-sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .head-actions { display: flex; gap: 6px; align-items: center; }
+  .icon-btn {
+    background: transparent; border: 0; color: var(--header-text);
+    width: 40px; height: 40px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; opacity: .9;
+  }
+  .icon-btn:hover { background: rgba(255,255,255,.12); opacity: 1; }
+  .icon-btn svg { width: 22px; height: 22px; }
+
+  /* ---------- Search bar ---------- */
+  .searchbar {
+    flex: 0 0 auto;
+    background: var(--panel-bg);
+    color: var(--panel-text);
+    display: none;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--shadow);
+    z-index: 25;
+  }
+  .searchbar.open { display: flex; }
+  .searchbar input {
+    flex: 1 1 auto; border: 0; outline: 0; background: transparent;
+    color: var(--panel-text); font-size: 15px; padding: 6px 4px;
+  }
+  .search-count { font-size: 13px; color: var(--time); white-space: nowrap; }
+  .search-nav { display: flex; gap: 2px; }
+  .mini-btn {
+    background: transparent; border: 0; color: var(--panel-text);
+    width: 32px; height: 32px; border-radius: 50%; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .mini-btn:hover { background: rgba(127,127,127,.18); }
+  .mini-btn:disabled { opacity: .3; cursor: default; }
+  .mini-btn svg { width: 18px; height: 18px; }
+
+  /* ---------- Go-to-date popover ---------- */
+  .date-pop {
+    position: absolute;
+    top: 56px; right: 14px;
+    z-index: 40;
+    background: var(--panel-bg);
+    color: var(--panel-text);
+    border-radius: 12px;
+    padding: 16px;
+    width: 250px;
+    box-shadow: 0 6px 24px rgba(0,0,0,.3);
+    display: none;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .date-pop.open { display: flex; animation: popIn .14s ease-out; }
+  @keyframes popIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+  .date-pop-title { font-size: 15px; font-weight: 500; }
+  .date-pop input[type=date] {
+    border: 1.5px solid var(--shadow);
+    background: transparent; color: var(--panel-text);
+    border-radius: 8px; padding: 9px 10px; font-size: 15px;
+    font-family: inherit; width: 100%; color-scheme: light;
+  }
+  .dark .date-pop input[type=date] { color-scheme: dark; }
+  .date-pop input[type=date]:focus { outline: 0; border-color: var(--wa-green); }
+  .date-range { font-size: 12px; color: var(--time); }
+  .date-pop-actions { display: flex; justify-content: flex-end; gap: 6px; }
+  .date-pop-actions button {
+    border: 0; border-radius: 18px; padding: 8px 16px;
+    font-size: 14px; font-weight: 500; cursor: pointer; font-family: inherit;
+  }
+  .date-cancel { background: transparent; color: var(--wa-green); }
+  .dark .date-cancel { color: #00a884; }
+  .date-go { background: var(--wa-green); color: #fff; }
+  .date-go:hover { background: var(--wa-green-dark); }
+
+  /* ---------- Chat scroller ---------- */
+  .chat {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overflow-x: hidden;
+    position: relative;
+    padding: 0 6%;
+    scroll-behavior: auto;
+  }
+  /* Doodle wallpaper */
+  .chat::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background-image: var(--doodle-url);
+    background-size: 380px;
+    opacity: var(--doodle-op);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .content { position: relative; z-index: 1; padding: 12px 0 16px; }
+
+  .block { width: 100%; }
+
+  /* ---------- Date divider ---------- */
+  .divider { display: flex; justify-content: center; margin: 14px 0 10px; }
+  .divider span {
+    background: var(--divider-bg);
+    color: var(--divider-text);
+    font-size: 12.5px; font-weight: 500;
+    padding: 6px 12px; border-radius: 8px;
+    box-shadow: 0 1px 1px var(--shadow);
+    text-transform: uppercase; letter-spacing: .3px;
+  }
+
+  /* ---------- System message ---------- */
+  .system { display: flex; justify-content: center; margin: 8px 0; }
+  .system span {
+    background: var(--sysmsg-bg);
+    color: var(--sysmsg-text);
+    font-size: 12.5px; text-align: center;
+    padding: 6px 14px; border-radius: 8px; max-width: 80%;
+    box-shadow: 0 1px 1px var(--shadow);
+  }
+
+  /* ---------- Message rows ---------- */
+  .row { display: flex; margin: 1px 0; padding: 0 4px; }
+  .row.out { justify-content: flex-end; }
+  .row.in { justify-content: flex-start; }
+  .row.grp-start { margin-top: 8px; }
+
+  .bubble {
+    position: relative;
+    max-width: 72%;
+    border-radius: 8px;
+    padding: 6px 9px 8px 9px;
+    box-shadow: 0 1px .5px var(--shadow);
+    font-size: 14.6px;
+    line-height: 1.32;
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
+  }
+  .row.in .bubble { background: var(--bubble-in); border-top-left-radius: 8px; }
+  .row.out .bubble { background: var(--bubble-out); border-top-right-radius: 8px; }
+  .row.grp-start.in .bubble { border-top-left-radius: 0; }
+  .row.grp-start.out .bubble { border-top-right-radius: 0; }
+
+  /* bubble tail */
+  .row.grp-start.in .bubble::before,
+  .row.grp-start.out .bubble::before {
+    content: ""; position: absolute; top: 0; width: 8px; height: 13px;
+  }
+  .row.grp-start.in .bubble::before {
+    left: -8px;
+    background: var(--bubble-in);
+    clip-path: polygon(100% 0, 0 0, 100% 100%);
+  }
+  .row.grp-start.out .bubble::before {
+    right: -8px;
+    background: var(--bubble-out);
+    clip-path: polygon(0 0, 100% 0, 0 100%);
+  }
+
+  .sender { font-size: 13px; font-weight: 600; margin-bottom: 2px; display: block; }
+  .msg-text { white-space: pre-wrap; color: var(--text); }
+  .msg-text.big-emoji { font-size: 40px; line-height: 1.15; }
+  .msg-text a { color: var(--link); text-decoration: none; }
+  .msg-text a:hover { text-decoration: underline; }
+
+  .media-ph {
+    display: flex; align-items: center; gap: 8px;
+    color: var(--time); font-style: italic; padding: 14px 18px;
+    background: rgba(127,127,127,.12); border-radius: 6px; margin-bottom: 2px;
+  }
+  .media-ph svg { width: 20px; height: 20px; opacity: .7; }
+  .deleted { color: var(--time); font-style: italic; display: flex; align-items: center; gap: 6px; }
+  .deleted svg { width: 15px; height: 15px; }
+
+  .meta {
+    float: right;
+    margin: 6px 0 -4px 10px;
+    font-size: 11px;
+    color: var(--time);
+    display: inline-flex; align-items: center; gap: 3px;
+    user-select: none;
+  }
+  .row.out .meta .tick { color: var(--tick); display: inline-flex; }
+  .meta .tick svg { width: 16px; height: 11px; }
+
+  mark { background: var(--search-hit); color: inherit; border-radius: 2px; padding: 0 1px; }
+  mark.active { background: var(--search-active); }
+
+  /* ---------- Jump to bottom ---------- */
+  .fab {
+    position: absolute; right: 22px; bottom: 22px;
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--panel-bg); color: var(--time);
+    border: 0; cursor: pointer; z-index: 20;
+    box-shadow: 0 2px 6px rgba(0,0,0,.25);
+    display: none; align-items: center; justify-content: center;
+    transition: opacity .2s;
+  }
+  .fab.show { display: flex; }
+  .fab svg { width: 24px; height: 24px; }
+
+  /* ---------- Drop / empty state ---------- */
+  .empty {
+    position: absolute; inset: 0; z-index: 50;
+    background: var(--app-bg);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 18px; padding: 30px; text-align: center;
+  }
+  .empty.hide { display: none; }
+  .drop {
+    border: 2.5px dashed var(--wa-green);
+    border-radius: 18px; padding: 46px 38px; max-width: 460px; width: 100%;
+    background: var(--panel-bg); color: var(--panel-text);
+    transition: background .15s, transform .15s;
+  }
+  .drop.over { background: #e8f8f1; transform: scale(1.01); }
+  .dark .drop.over { background: #1c3a33; }
+  .drop .logo {
+    width: 64px; height: 64px; margin: 0 auto 14px;
+    background: var(--wa-green); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .drop .logo svg { width: 38px; height: 38px; fill: #fff; }
+  .drop h1 { font-size: 21px; margin: 0 0 6px; }
+  .drop p { font-size: 14px; color: var(--time); margin: 0 0 20px; line-height: 1.5; }
+  .btn {
+    background: var(--wa-green); color: #fff; border: 0;
+    padding: 11px 22px; border-radius: 24px; font-size: 15px;
+    font-weight: 500; cursor: pointer;
+  }
+  .btn:hover { background: var(--wa-green-dark); }
+  .hint { font-size: 12px; color: var(--time); margin-top: 14px; }
+
+  /* ---------- Participant chooser ---------- */
+  .overlay {
+    position: absolute; inset: 0; z-index: 60;
+    background: rgba(0,0,0,.45);
+    display: none; align-items: center; justify-content: center; padding: 24px;
+  }
+  .overlay.show { display: flex; }
+  .card {
+    background: var(--panel-bg); color: var(--panel-text);
+    border-radius: 14px; padding: 26px; max-width: 380px; width: 100%;
+    box-shadow: 0 8px 30px rgba(0,0,0,.4);
+  }
+  .card h2 { margin: 0 0 6px; font-size: 19px; }
+  .card .sub { font-size: 13.5px; color: var(--time); margin: 0 0 18px; }
+  .choice {
+    display: flex; align-items: center; gap: 12px; width: 100%;
+    padding: 12px 14px; margin-bottom: 10px; border-radius: 10px;
+    border: 1.5px solid var(--shadow); background: transparent;
+    color: var(--panel-text); cursor: pointer; font-size: 15px; text-align: left;
+  }
+  .choice:hover { border-color: var(--wa-green); background: rgba(0,128,105,.07); }
+  .choice .av {
+    width: 36px; height: 36px; border-radius: 50%; flex: 0 0 auto;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 600;
+  }
+  .choice .cnt { margin-left: auto; font-size: 12px; color: var(--time); }
+
+  /* ---------- Loading ---------- */
+  .loading {
+    position: absolute; inset: 0; z-index: 55;
+    background: var(--app-bg); display: none;
+    flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+  }
+  .loading.show { display: flex; }
+  .spinner {
+    width: 42px; height: 42px; border: 4px solid var(--shadow);
+    border-top-color: var(--wa-green); border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading p { color: var(--time); font-size: 14px; }
+
+  @media (max-width: 640px) {
+    .bubble { max-width: 85%; font-size: 15px; }
+    .chat { padding: 0 3%; }
+  }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <header id="header" style="display:none">
+    <div class="avatar" id="hAvatar">#</div>
+    <div class="head-info">
+      <div class="head-name" id="hName">Chat</div>
+      <div class="head-sub" id="hSub">tap to load a chat</div>
+    </div>
+    <div class="head-actions">
+      <button class="icon-btn" id="btnDate" title="Go to date">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 4h-1V2h-2v2H8V2H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 16H5V9h14v11zm0-13H5V6h14v1z"/></svg>
+      </button>
+      <button class="icon-btn" id="btnSearch" title="Search">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"/></svg>
+      </button>
+      <button class="icon-btn" id="btnTheme" title="Toggle theme">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.39 5.39 0 0 1-4.4 2.26 5.4 5.4 0 0 1-5.4-5.4c0-1.81.89-3.41 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/></svg>
+      </button>
+      <button class="icon-btn" id="btnNew" title="Open another chat">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Go-to-date popover -->
+  <div class="date-pop" id="datePop">
+    <div class="date-pop-title">Jump to a date</div>
+    <input type="date" id="dateInput">
+    <div class="date-range" id="dateRange"></div>
+    <div class="date-pop-actions">
+      <button class="date-cancel" id="btnDateCancel">Cancel</button>
+      <button class="date-go" id="btnDateGo">Go</button>
+    </div>
+  </div>
+
+  <div class="searchbar" id="searchbar">
+    <button class="mini-btn" id="btnSearchClose" title="Close">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z"/></svg>
+    </button>
+    <input id="searchInput" type="text" placeholder="Search messages…" autocomplete="off">
+    <span class="search-count" id="searchCount"></span>
+    <div class="search-nav">
+      <button class="mini-btn" id="btnPrev" title="Previous" disabled>
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7.41 15.41 12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg>
+      </button>
+      <button class="mini-btn" id="btnNext" title="Next" disabled>
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="chat" id="chat">
+    <div class="content" id="content"></div>
+  </div>
+
+  <button class="fab" id="fab" title="Scroll to latest">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg>
+  </button>
+
+  <!-- Empty / drop state -->
+  <div class="empty" id="empty">
+    <div class="drop" id="drop">
+      <div class="logo">
+        <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 0-8.94 14.46L2 22l5.7-1.49A10 10 0 1 0 12 2zm5.2 14.16c-.22.62-1.3 1.2-1.78 1.24-.46.05-.9.23-3.04-.63-2.56-1.04-4.18-3.67-4.3-3.84-.13-.17-1.04-1.38-1.04-2.64 0-1.25.66-1.87.89-2.13.23-.26.5-.32.66-.32.16 0 .33 0 .47.01.15 0 .35-.06.55.42.2.5.7 1.74.76 1.87.06.13.1.28.02.45-.08.17-.12.28-.24.43-.13.15-.26.33-.37.44-.13.13-.26.27-.11.52.15.26.66 1.09 1.42 1.76.97.87 1.79 1.13 2.05 1.26.26.13.41.11.56-.07.16-.17.65-.76.82-1.02.17-.26.34-.21.57-.13.23.09 1.48.7 1.74.82.26.13.43.19.49.3.06.1.06.6-.16 1.22z"/></svg>
+      </div>
+      <h1>WhatsApp Chat Viewer</h1>
+      <p>Open an exported <b>.txt</b> chat and read it just like in WhatsApp — bubbles, dates, the works.</p>
+      <button class="btn" id="btnOpen">Open chat file</button>
+      <input type="file" id="fileInput" accept=".txt,text/plain" style="display:none">
+      <div class="hint">…or drag &amp; drop the file here</div>
+    </div>
+  </div>
+
+  <!-- Participant chooser -->
+  <div class="overlay" id="overlay">
+    <div class="card">
+      <h2>Which side are you?</h2>
+      <p class="sub">Your messages appear on the right in green. Pick the participant that's you.</p>
+      <div id="choices"></div>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <p id="loadingText">Reading chat…</p>
+  </div>
+
+</div>
+
+<script>
+"use strict";
+(function () {
+  // ---------- DOM ----------
+  const $ = id => document.getElementById(id);
+  const chatEl = $('chat'), contentEl = $('content');
+  const emptyEl = $('empty'), dropEl = $('drop'), fileInput = $('fileInput');
+  const loadingEl = $('loading'), loadingText = $('loadingText');
+  const overlayEl = $('overlay'), choicesEl = $('choices');
+  const headerEl = $('header'), hAvatar = $('hAvatar'), hName = $('hName'), hSub = $('hSub');
+  const fab = $('fab');
+  const datePop = $('datePop'), dateInput = $('dateInput');
+  const searchbar = $('searchbar'), searchInput = $('searchInput'),
+        searchCount = $('searchCount'), btnPrev = $('btnPrev'), btnNext = $('btnNext');
+
+  // ---------- State ----------
+  let messages = [];     // parsed messages
+  let renderItems = [];  // messages + date dividers (flat)
+  let dayStarts = [];    // [{time, itemIdx}] one per day with messages, for go-to-date
+  let blocks = [];       // virtualization blocks
+  let meName = null;
+  let chatTitle = "Chat";
+  let participants = [];
+  let observer = null;
+
+  const BLOCK_SIZE = 60;
+
+  // ---------- Doodle wallpaper ----------
+  function setDoodle() {
+    const c = getComputedStyle(document.documentElement).getPropertyValue('--doodle').trim();
+    const svg =
+      `<svg xmlns='http://www.w3.org/2000/svg' width='380' height='380' viewBox='0 0 380 380'>`+
+      `<g fill='none' stroke='rgb(${c})' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>`+
+      `<circle cx='60' cy='60' r='14'/><path d='M52 62q8 8 16 0'/><circle cx='55' cy='56' r='1.5'/><circle cx='65' cy='56' r='1.5'/>`+
+      `<path d='M150 40c-6-8-20-4-20 6 0 8 20 18 20 18s20-10 20-18c0-10-14-14-20-6z'/>`+
+      `<path d='M250 70l6 12 13 2-9 9 2 13-12-6-12 6 2-13-9-9 13-2z'/>`+
+      `<path d='M320 150l18 0M329 141l0 18'/>`+
+      `<path d='M40 200q20-22 40 0t40 0'/>`+
+      `<rect x='150' y='180' width='34' height='24' rx='5'/><path d='M150 186l17 11 17-11'/>`+
+      `<path d='M270 210c0 10 8 18 18 18 4 0 8-2 8-2l8 4-2-8s2-4 2-8c0-10-8-16-18-16s-16 6-16 12z'/>`+
+      `<circle cx='70' cy='320' r='16'/><path d='M70 312v8l6 4'/>`+
+      `<path d='M180 300l8 16 8-16M188 316v14'/>`+
+      `<path d='M300 320c-7-9-22-4-22 6 0 9 22 19 22 19s22-10 22-19c0-10-15-15-22-6z'/>`+
+      `</g></svg>`;
+    document.documentElement.style.setProperty('--doodle-url',
+      `url("data:image/svg+xml,${encodeURIComponent(svg)}")`);
+  }
+
+  // ---------- Theme ----------
+  function toggleTheme() {
+    document.body.classList.toggle('dark');
+    setDoodle();
+  }
+  $('btnTheme').addEventListener('click', toggleTheme);
+
+  // ---------- Go-to-date handlers ----------
+  $('btnDate').addEventListener('click', e => { e.stopPropagation(); openDatePop(); });
+  $('btnDateCancel').addEventListener('click', closeDatePop);
+  $('btnDateGo').addEventListener('click', doDateJump);
+  dateInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); doDateJump(); }
+    if (e.key === 'Escape') closeDatePop();
+  });
+  datePop.addEventListener('click', e => e.stopPropagation());
+  document.addEventListener('click', () => closeDatePop());
+
+  function doDateJump() {
+    if (!dateInput.value) return;
+    const parts = dateInput.value.split('-');
+    const target = new Date(+parts[0], +parts[1] - 1, +parts[2]);
+    closeDatePop();
+    jumpToDate(target);
+  }
+
+  // ---------- File loading ----------
+  $('btnOpen').addEventListener('click', () => fileInput.click());
+  $('btnNew').addEventListener('click', () => { fileInput.value=''; fileInput.click(); });
+  fileInput.addEventListener('change', e => { if (e.target.files[0]) loadFile(e.target.files[0]); });
+
+  ['dragenter','dragover'].forEach(ev =>
+    dropEl.addEventListener(ev, e => { e.preventDefault(); dropEl.classList.add('over'); }));
+  ['dragleave','drop'].forEach(ev =>
+    dropEl.addEventListener(ev, e => { e.preventDefault(); dropEl.classList.remove('over'); }));
+  dropEl.addEventListener('drop', e => {
+    const f = e.dataTransfer.files[0];
+    if (f) loadFile(f);
+  });
+  // allow dropping anywhere
+  window.addEventListener('dragover', e => e.preventDefault());
+  window.addEventListener('drop', e => {
+    e.preventDefault();
+    if (!emptyEl.classList.contains('hide')) return;
+  });
+
+  function loadFile(file) {
+    chatTitle = file.name.replace(/^WhatsApp Chat with /i, '').replace(/\.txt$/i, '') || 'Chat';
+    loadingEl.classList.add('show');
+    loadingText.textContent = 'Reading file…';
+    const reader = new FileReader();
+    reader.onload = () => {
+      loadingText.textContent = 'Parsing messages…';
+      setTimeout(() => {
+        try {
+          parse(reader.result);
+          loadingEl.classList.remove('show');
+          if (messages.length === 0) {
+            alert("Couldn't find any WhatsApp messages in that file. Make sure it's an exported chat .txt.");
+            return;
+          }
+          showParticipantChooser();
+        } catch (err) {
+          loadingEl.classList.remove('show');
+          alert('Error parsing file: ' + err.message);
+        }
+      }, 30);
+    };
+    reader.onerror = () => { loadingEl.classList.remove('show'); alert('Could not read the file.'); };
+    reader.readAsText(file);
+  }
+
+  // ---------- Parser ----------
+  // Matches:  M/D/YY, H:MM[ ]AM/PM - Sender: text     (AM/PM optional for 24h exports)
+  // The space before AM/PM may be U+202F, U+00A0 or normal space.
+  const LINE_RE = /^(\d{1,2}\/\d{1,2}\/\d{2,4}),\s(\d{1,2}:\d{2})(?:[\u202f\u00a0\s]?([AaPp][Mm]))?\s-\s(.*)$/;
+
+  function parse(text) {
+    messages = [];
+    const lines = text.split(/\r?\n/);
+    let cur = null;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const m = LINE_RE.exec(line);
+      if (m) {
+        if (cur) messages.push(cur);
+        const [, dateStr, timeStr, ampm, rest] = m;
+        // split sender / body on first ": "
+        const ci = rest.indexOf(': ');
+        let sender = null, body = rest;
+        if (ci > -1 && ci < 60 && !rest.slice(0, ci).includes('\n')) {
+          sender = rest.slice(0, ci);
+          body = rest.slice(ci + 2);
+        }
+        const time12 = ampm ? (timeStr + ' ' + ampm.toUpperCase()) : timeStr;
+        cur = {
+          date: parseDate(dateStr),
+          dateStr,
+          time: time12,
+          sender,                       // null => system message
+          text: body,
+          system: sender === null
+        };
+      } else {
+        // continuation of previous message (multi-line)
+        if (cur) cur.text += '\n' + line;
+      }
+    }
+    if (cur) messages.push(cur);
+
+    // detect participants
+    const counts = {};
+    for (const msg of messages) {
+      if (msg.sender) counts[msg.sender] = (counts[msg.sender] || 0) + 1;
+    }
+    participants = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+    participants.counts = counts;
+    participants._counts = counts;
+  }
+
+  function parseDate(s) {
+    const p = s.split('/');
+    let mo = +p[0], da = +p[1], yr = +p[2];
+    if (yr < 100) yr += 2000;
+    const d = new Date(yr, mo - 1, da);
+    return isNaN(d) ? null : d;
+  }
+
+  // ---------- Participant chooser ----------
+  function showParticipantChooser() {
+    const palette = ['var(--name-1)', 'var(--name-2)', 'var(--name-3)', '#0a9e6e', '#c94f7c'];
+    choicesEl.innerHTML = '';
+    participants.forEach((name, idx) => {
+      const btn = document.createElement('button');
+      btn.className = 'choice';
+      const av = document.createElement('span');
+      av.className = 'av';
+      av.style.background = palette[idx % palette.length];
+      av.textContent = initials(name);
+      const label = document.createElement('span');
+      label.textContent = name;
+      const cnt = document.createElement('span');
+      cnt.className = 'cnt';
+      cnt.textContent = participants._counts[name].toLocaleString() + ' msgs';
+      btn.append(av, label, cnt);
+      btn.addEventListener('click', () => { meName = name; overlayEl.classList.remove('show'); startChat(); });
+      choicesEl.appendChild(btn);
+    });
+    if (participants.length === 0) { meName = null; startChat(); return; }
+    if (participants.length === 1) { meName = '___none___'; startChat(); return; }
+    overlayEl.classList.add('show');
+  }
+
+  function initials(name) {
+    if (!name) return '#';
+    const parts = name.trim().split(/\s+/);
+    return (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
+  }
+
+  // ---------- Build render items (insert date dividers) ----------
+  function buildRenderItems() {
+    renderItems = [];
+    dayStarts = [];
+    let lastKey = null;
+    let prevSender = null, prevWasMsg = false;
+    for (let i = 0; i < messages.length; i++) {
+      const msg = messages[i];
+      const key = msg.date ? msg.date.getFullYear()+'-'+msg.date.getMonth()+'-'+msg.date.getDate() : 'nd';
+      if (key !== lastKey) {
+        if (msg.date) dayStarts.push({ time: msg.date.getTime(), itemIdx: renderItems.length });
+        renderItems.push({ type: 'divider', label: dividerLabel(msg.date), date: msg.date });
+        lastKey = key;
+        prevSender = null; prevWasMsg = false;
+      }
+      if (msg.system) {
+        renderItems.push({ type: 'system', msg });
+        prevSender = null; prevWasMsg = false;
+      } else {
+        const groupStart = !(prevWasMsg && prevSender === msg.sender);
+        renderItems.push({ type: 'msg', msg, groupStart, idx: i });
+        prevSender = msg.sender; prevWasMsg = true;
+      }
+    }
+  }
+
+  function dividerLabel(d) {
+    if (!d) return 'Unknown date';
+    const today = new Date(); today.setHours(0,0,0,0);
+    const diff = Math.round((today - d) / 86400000);
+    if (diff === 0) return 'Today';
+    if (diff === 1) return 'Yesterday';
+    const opts = { weekday: undefined, day: 'numeric', month: 'long', year: 'numeric' };
+    return d.toLocaleDateString(undefined, opts);
+  }
+
+  // ---------- Estimate heights for placeholders ----------
+  function estimateHeight(item) {
+    if (item.type === 'divider') return 44;
+    if (item.type === 'system') return 40;
+    const m = item.msg;
+    if (/^<Media omitted>$/.test(m.text)) return 60;
+    const len = m.text.length;
+    const lines = m.text.split('\n').length;
+    const wrap = Math.max(lines, Math.ceil(len / 42));
+    let h = 26 + wrap * 19;
+    if (item.groupStart && m.sender !== meName) h += 16; // sender label
+    if (item.groupStart) h += 6;
+    return h;
+  }
+
+  // ---------- Start ----------
+  function startChat() {
+    buildRenderItems();
+    // header — show the person you're chatting WITH (the other participant)
+    let contactName = chatTitle;
+    if (participants.length === 2) {
+      contactName = participants.find(p => p !== meName) || chatTitle;
+    } else if (participants.length === 1) {
+      contactName = participants[0];
+    }
+    hName.textContent = contactName;
+    hAvatar.textContent = initials(contactName);
+    hSub.textContent = messages.length.toLocaleString() + ' messages'
+      + (participants.length ? ' · ' + participants.join(', ') : '');
+    headerEl.style.display = 'flex';
+    emptyEl.classList.add('hide');
+
+    setupBlocks();
+    setupDateBounds();
+    // open at top (start of history). Use FAB to jump to latest.
+    chatEl.scrollTop = 0;
+    updateFab();
+  }
+
+  // ---------- Go to date ----------
+  function setupDateBounds() {
+    if (!dayStarts.length) { $('btnDate').style.display = 'none'; return; }
+    $('btnDate').style.display = 'flex';
+    const min = new Date(dayStarts[0].time);
+    const max = new Date(dayStarts[dayStarts.length - 1].time);
+    dateInput.min = toInputDate(min);
+    dateInput.max = toInputDate(max);
+    dateInput.value = toInputDate(min);
+    $('dateRange').textContent = 'Chat spans ' + niceDate(min) + ' – ' + niceDate(max);
+  }
+
+  function toInputDate(d) {
+    const p = n => String(n).padStart(2, '0');
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+  }
+  function niceDate(d) {
+    return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  function openDatePop() {
+    datePop.classList.toggle('open');
+    if (datePop.classList.contains('open')) dateInput.focus();
+  }
+  function closeDatePop() { datePop.classList.remove('open'); }
+
+  function jumpToDate(target) {
+    if (!dayStarts.length) return;
+    const t = target.getTime();
+    // first day >= target (binary search; dayStarts sorted ascending)
+    let lo = 0, hi = dayStarts.length - 1, found = dayStarts.length - 1;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      if (dayStarts[mid].time >= t) { found = mid; hi = mid - 1; }
+      else lo = mid + 1;
+    }
+    // if target is after the last day, land on the last day
+    if (dayStarts[found].time < t) found = dayStarts.length - 1;
+    scrollToItem(dayStarts[found].itemIdx, () => {
+      const b = blocks[Math.floor(dayStarts[found].itemIdx / BLOCK_SIZE)];
+      if (b && b.rendered) {
+        const div = b.el.children[dayStarts[found].itemIdx - b.start];
+        if (div) flashDivider(div);
+      }
+    });
+  }
+
+  function flashDivider(el) {
+    const span = el.querySelector('span') || el;
+    span.style.transition = 'background .25s, color .25s';
+    const obg = span.style.background, oc = span.style.color;
+    span.style.background = 'var(--wa-green)';
+    span.style.color = '#fff';
+    setTimeout(() => { span.style.background = obg; span.style.color = oc; }, 700);
+  }
+
+  // ---------- Virtualization ----------
+  function setupBlocks() {
+    if (observer) observer.disconnect();
+    contentEl.innerHTML = '';
+    blocks = [];
+    const frag = document.createDocumentFragment();
+
+    for (let start = 0; start < renderItems.length; start += BLOCK_SIZE) {
+      const end = Math.min(start + BLOCK_SIZE, renderItems.length);
+      let est = 0;
+      for (let i = start; i < end; i++) est += estimateHeight(renderItems[i]);
+      const el = document.createElement('div');
+      el.className = 'block';
+      el.style.minHeight = est + 'px';
+      const b = { start, end, el, rendered: false, measured: est };
+      el._block = b;
+      blocks.push(b);
+      frag.appendChild(el);
+    }
+    contentEl.appendChild(frag);
+
+    observer = new IntersectionObserver(onIntersect, {
+      root: chatEl,
+      rootMargin: '1400px 0px 1400px 0px'
+    });
+    blocks.forEach(b => observer.observe(b.el));
+  }
+
+  function onIntersect(entries) {
+    for (const e of entries) {
+      const b = e.target._block;
+      if (e.isIntersecting) renderBlock(b);
+      else recycleBlock(b);
+    }
+  }
+
+  function renderBlock(b) {
+    if (b.rendered) return;
+    const frag = document.createDocumentFragment();
+    for (let i = b.start; i < b.end; i++) frag.appendChild(buildItemEl(renderItems[i]));
+    b.el.innerHTML = '';
+    b.el.style.minHeight = '';
+    b.el.appendChild(frag);
+    b.rendered = true;
+    b.measured = b.el.offsetHeight;
+    if (searchState.term) highlightBlock(b);
+  }
+
+  function recycleBlock(b) {
+    if (!b.rendered) return;
+    b.measured = b.el.offsetHeight;
+    b.el.style.minHeight = b.measured + 'px';
+    b.el.innerHTML = '';
+    b.rendered = false;
+  }
+
+  // ---------- Item element builders ----------
+  const SVG_TICK = `<span class="tick"><svg viewBox="0 0 16 11" fill="currentColor"><path d="M11.07.65a.5.5 0 0 0-.7.02L5.2 6.4 3.3 4.5a.5.5 0 1 0-.7.7l2.25 2.26a.5.5 0 0 0 .72-.02L11.1 1.35a.5.5 0 0 0-.03-.7zm3.4 0a.5.5 0 0 0-.7.02L8.6 6.4l-.5-.5-.7.7 1.2 1.2a.5.5 0 0 0 .72-.02L14.5 1.35a.5.5 0 0 0-.03-.7z"/></svg></span>`;
+
+  function buildItemEl(item) {
+    if (item.type === 'divider') {
+      const d = document.createElement('div');
+      d.className = 'divider';
+      const s = document.createElement('span');
+      s.textContent = item.label;
+      d.appendChild(s);
+      return d;
+    }
+    if (item.type === 'system') {
+      const d = document.createElement('div');
+      d.className = 'system';
+      const s = document.createElement('span');
+      s.textContent = item.msg.text;
+      d.appendChild(s);
+      return d;
+    }
+    const m = item.msg;
+    const isMe = m.sender === meName;
+    const row = document.createElement('div');
+    row.className = 'row ' + (isMe ? 'out' : 'in') + (item.groupStart ? ' grp-start' : '');
+    row.dataset.idx = item.idx;
+
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+
+    if (item.groupStart && !isMe && participants.length > 2) {
+      const sn = document.createElement('span');
+      sn.className = 'sender';
+      sn.textContent = m.sender;
+      sn.style.color = nameColor(m.sender);
+      bubble.appendChild(sn);
+    }
+
+    const special = specialContent(m.text);
+    if (special) {
+      bubble.appendChild(special);
+    } else {
+      const tx = document.createElement('span');
+      tx.className = 'msg-text';
+      if (isEmojiOnly(m.text)) tx.classList.add('big-emoji');
+      tx.innerHTML = linkify(escapeHtml(m.text));
+      bubble.appendChild(tx);
+    }
+
+    const meta = document.createElement('span');
+    meta.className = 'meta';
+    meta.appendChild(document.createTextNode(formatTime(m.time)));
+    if (isMe) meta.insertAdjacentHTML('beforeend', SVG_TICK);
+    bubble.appendChild(meta);
+
+    row.appendChild(bubble);
+    return row;
+  }
+
+  function specialContent(text) {
+    if (/^<Media omitted>$/.test(text)) {
+      const d = document.createElement('div');
+      d.className = 'media-ph';
+      d.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM8.5 13.5l2.5 3 3.5-4.5 4.5 6H5l3.5-4.5z"/></svg> <span>Media omitted</span>`;
+      return d;
+    }
+    if (/^(You deleted this message|This message was deleted)$/.test(text)) {
+      const d = document.createElement('div');
+      d.className = 'msg-text deleted';
+      d.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm5 11H7v-2h10v2z"/></svg> <i>${escapeHtml(text)}</i>`;
+      return d;
+    }
+    if (/\.(opus|m4a|mp3)( \(file attached\))?$/i.test(text) || /\(file attached\)$/i.test(text)) {
+      const d = document.createElement('div');
+      d.className = 'media-ph';
+      d.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg> <span>${escapeHtml(text)}</span>`;
+      return d;
+    }
+    return null;
+  }
+
+  function nameColor(name) {
+    const palette = ['var(--name-1)','var(--name-2)','var(--name-3)','#0a9e6e','#c94f7c','#8b5cf6'];
+    let h = 0; for (let i=0;i<name.length;i++) h = (h*31 + name.charCodeAt(i)) >>> 0;
+    return palette[h % palette.length];
+  }
+
+  function formatTime(t) {
+    // turn "12:04 AM" => "12:04 AM" (already fine) ; keep as-is
+    return t;
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  const URL_RE = /((?:https?:\/\/|www\.)[^\s<]+)/g;
+  function linkify(escaped) {
+    return escaped.replace(URL_RE, m => {
+      const href = m.startsWith('http') ? m : 'https://' + m;
+      return `<a href="${href}" target="_blank" rel="noopener noreferrer">${m}</a>`;
+    });
+  }
+
+  const EMOJI_RE = /^(?:[\s]|\p{Extended_Pictographic}|\u200d|[\u{1F3FB}-\u{1F3FF}]|[\u{1F1E6}-\u{1F1FF}]|\uFE0F)+$/u;
+  function isEmojiOnly(text) {
+    const t = text.trim();
+    if (!t || t.length > 40) return false;
+    try { return EMOJI_RE.test(t) && /\p{Extended_Pictographic}/u.test(t); }
+    catch { return false; }
+  }
+
+  // ---------- Scroll helpers ----------
+  function updateFab() {
+    const nearBottom = chatEl.scrollTop + chatEl.clientHeight > chatEl.scrollHeight - 400;
+    fab.classList.toggle('show', !nearBottom && renderItems.length > 0);
+  }
+  chatEl.addEventListener('scroll', updateFab, { passive: true });
+  fab.addEventListener('click', () => { chatEl.scrollTop = chatEl.scrollHeight; });
+
+  // ---------- Search ----------
+  const searchState = { term: '', hits: [], pos: -1 };
+
+  $('btnSearch').addEventListener('click', () => {
+    searchbar.classList.add('open');
+    searchInput.focus();
+    searchInput.select();
+  });
+  $('btnSearchClose').addEventListener('click', closeSearch);
+  function closeSearch() {
+    searchbar.classList.remove('open');
+    searchInput.value = '';
+    clearSearch();
+  }
+  function clearSearch() {
+    searchState.term = ''; searchState.hits = []; searchState.pos = -1;
+    searchCount.textContent = '';
+    btnPrev.disabled = btnNext.disabled = true;
+    // remove highlights from rendered blocks
+    contentEl.querySelectorAll('mark').forEach(mk => {
+      const t = document.createTextNode(mk.textContent);
+      mk.replaceWith(t);
+    });
+    contentEl.querySelectorAll('.msg-text').forEach(el => el.normalize());
+  }
+
+  let searchTimer = null;
+  searchInput.addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(runSearch, 200);
+  });
+  searchInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); e.shiftKey ? gotoHit(-1) : gotoHit(1); }
+    if (e.key === 'Escape') closeSearch();
+  });
+  btnNext.addEventListener('click', () => gotoHit(1));
+  btnPrev.addEventListener('click', () => gotoHit(-1));
+
+  function runSearch() {
+    const term = searchInput.value.trim().toLowerCase();
+    clearSearch();
+    if (!term) return;
+    searchState.term = term;
+    const hits = [];
+    for (let i = 0; i < renderItems.length; i++) {
+      const it = renderItems[i];
+      if (it.type === 'msg' && it.msg.text.toLowerCase().includes(term)) hits.push(i);
+      else if (it.type === 'system' && it.msg.text.toLowerCase().includes(term)) hits.push(i);
+    }
+    searchState.hits = hits;
+    searchState.pos = -1;
+    searchCount.textContent = hits.length ? ('0/' + hits.length) : 'No results';
+    btnPrev.disabled = btnNext.disabled = hits.length === 0;
+    // highlight currently rendered blocks
+    blocks.forEach(b => { if (b.rendered) highlightBlock(b); });
+    if (hits.length) gotoHit(1);
+  }
+
+  function highlightBlock(b) {
+    if (!searchState.term) return;
+    const term = searchState.term;
+    const nodes = b.el.querySelectorAll('.msg-text, .system span');
+    nodes.forEach(node => {
+      if (node.querySelector('mark')) return;
+      const txt = node.textContent;
+      if (!txt.toLowerCase().includes(term)) return;
+      // only safe to re-mark plain-text nodes (skip ones with links)
+      if (node.querySelector('a')) return;
+      const html = escapeHtml(txt);
+      const re = new RegExp('(' + term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+      node.innerHTML = html.replace(re, '<mark>$1</mark>');
+    });
+  }
+
+  function gotoHit(dir) {
+    const hits = searchState.hits;
+    if (!hits.length) return;
+    searchState.pos = (searchState.pos + dir + hits.length) % hits.length;
+    const itemIdx = hits[searchState.pos];
+    searchCount.textContent = (searchState.pos + 1) + '/' + hits.length;
+    scrollToItem(itemIdx, () => markActive(itemIdx));
+  }
+
+  function markActive(itemIdx) {
+    contentEl.querySelectorAll('mark.active').forEach(m => m.classList.remove('active'));
+    const blockIdx = Math.floor(itemIdx / BLOCK_SIZE);
+    const b = blocks[blockIdx];
+    if (!b || !b.rendered) return;
+    const mk = b.el.querySelectorAll('mark');
+    if (mk.length) { mk[0].classList.add('active'); }
+  }
+
+  function scrollToItem(itemIdx, cb) {
+    const blockIdx = Math.floor(itemIdx / BLOCK_SIZE);
+    const b = blocks[blockIdx];
+    if (!b) return;
+    // force render neighbours so heights settle
+    renderBlock(b);
+    const prev = blocks[blockIdx - 1]; if (prev) renderBlock(prev);
+    const next = blocks[blockIdx + 1]; if (next) renderBlock(next);
+    requestAnimationFrame(() => {
+      // find the specific row inside the block
+      const localStart = b.start;
+      const rows = b.el.children;
+      const target = rows[itemIdx - localStart];
+      if (target && target.scrollIntoView) {
+        target.scrollIntoView({ block: 'center', behavior: 'auto' });
+      } else {
+        b.el.scrollIntoView({ block: 'center' });
+      }
+      if (cb) requestAnimationFrame(cb);
+    });
+  }
+
+  // ---------- init ----------
+  setDoodle();
+})();
+
+// ---------- PWA: register service worker ----------
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(err => {
+      console.warn('Service worker registration failed:', err);
+    });
+  });
+}
+</script>
+</body>
+</html>

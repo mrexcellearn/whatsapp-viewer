@@ -148,6 +148,32 @@
   .mini-btn:disabled { opacity: .3; cursor: default; }
   .mini-btn svg { width: 18px; height: 18px; }
 
+  /* ---------- Floating (sticky) date pill ---------- */
+  .date-float {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    z-index: 15;
+    transform: translateX(-50%) translateY(-6px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .22s ease, transform .22s ease;
+  }
+  .date-float.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .date-float span {
+    display: inline-block;
+    background: var(--divider-bg);
+    color: var(--divider-text);
+    font-size: 12.5px;
+    font-weight: 500;
+    padding: 6px 12px;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px var(--shadow);
+    text-transform: uppercase;
+    letter-spacing: .3px;
+    white-space: nowrap;
+  }
+
   /* ---------- Go-to-date popover ---------- */
   .date-pop {
     position: absolute;
@@ -448,6 +474,8 @@
     <div class="content" id="content"></div>
   </div>
 
+  <div class="date-float" id="dateFloat"><span></span></div>
+
   <button class="fab" id="fab" title="Scroll to latest">
     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg>
   </button>
@@ -495,6 +523,7 @@
   const headerEl = $('header'), hAvatar = $('hAvatar'), hName = $('hName'), hSub = $('hSub');
   const fab = $('fab');
   const datePop = $('datePop'), dateInput = $('dateInput');
+  const dateFloat = $('dateFloat'), dateFloatSpan = dateFloat.querySelector('span');
   const searchbar = $('searchbar'), searchInput = $('searchInput'),
         searchCount = $('searchCount'), btnPrev = $('btnPrev'), btnNext = $('btnNext');
 
@@ -763,6 +792,8 @@
     setupDateBounds();
     // open at top (start of history). Use FAB to jump to latest.
     chatEl.scrollTop = 0;
+    lastFloatT = null;
+    dateFloat.classList.remove('show');
     updateFab();
   }
 
@@ -885,6 +916,7 @@
     if (item.type === 'divider') {
       const d = document.createElement('div');
       d.className = 'divider';
+      if (item.date) d.dataset.t = item.date.getTime();
       const s = document.createElement('span');
       s.textContent = item.label;
       d.appendChild(s);
@@ -893,6 +925,7 @@
     if (item.type === 'system') {
       const d = document.createElement('div');
       d.className = 'system';
+      if (item.msg.date) d.dataset.t = item.msg.date.getTime();
       const s = document.createElement('span');
       s.textContent = item.msg.text;
       d.appendChild(s);
@@ -903,6 +936,7 @@
     const row = document.createElement('div');
     row.className = 'row ' + (isMe ? 'out' : 'in') + (item.groupStart ? ' grp-start' : '');
     row.dataset.idx = item.idx;
+    if (m.date) row.dataset.t = m.date.getTime();
 
     const bubble = document.createElement('div');
     bubble.className = 'bubble';
@@ -994,7 +1028,42 @@
     const nearBottom = chatEl.scrollTop + chatEl.clientHeight > chatEl.scrollHeight - 400;
     fab.classList.toggle('show', !nearBottom && renderItems.length > 0);
   }
-  chatEl.addEventListener('scroll', updateFab, { passive: true });
+
+  // Floating WhatsApp-style date pill: reflects the date at the top of the viewport,
+  // shown while scrolling and fading out shortly after scrolling stops.
+  let lastFloatT = null, floatHideTimer = null;
+  function showDateFloat() {
+    // sit just below the header (and search bar, if open)
+    dateFloat.style.top = (chatEl.offsetTop + 12) + 'px';
+    dateFloat.classList.add('show');
+    clearTimeout(floatHideTimer);
+    floatHideTimer = setTimeout(() => dateFloat.classList.remove('show'), 1500);
+  }
+  function updateDateFloat() {
+    if (!renderItems.length) return;
+    const r = chatEl.getBoundingClientRect();
+    // probe just below the top edge; the pill is pointer-events:none so it's skipped
+    const el = document.elementFromPoint(r.left + r.width / 2, r.top + 14);
+    let node = el;
+    while (node && node !== chatEl && !(node.dataset && node.dataset.t)) node = node.parentElement;
+    if (!node || !node.dataset || !node.dataset.t) return;
+    const t = +node.dataset.t;
+    if (t !== lastFloatT) {
+      lastFloatT = t;
+      dateFloatSpan.textContent = dividerLabel(new Date(t));
+    }
+    showDateFloat();
+  }
+
+  let scrollRaf = null;
+  chatEl.addEventListener('scroll', () => {
+    if (scrollRaf) return;
+    scrollRaf = requestAnimationFrame(() => {
+      scrollRaf = null;
+      updateFab();
+      updateDateFloat();
+    });
+  }, { passive: true });
   fab.addEventListener('click', () => { chatEl.scrollTop = chatEl.scrollHeight; });
 
   // ---------- Search ----------

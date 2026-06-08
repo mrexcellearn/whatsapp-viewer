@@ -3,7 +3,7 @@
    The user's chat .txt is read locally via FileReader and is NEVER fetched,
    cached, or stored by this worker. */
 
-const CACHE = 'chat-viewer-v1';
+const CACHE = 'chat-viewer-v2';
 
 // App shell — relative paths so it works at root OR /repo-name/ on GitHub Pages.
 const SHELL = [
